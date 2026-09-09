@@ -34,9 +34,15 @@ export default function SettingsDrawer({ open, onClose }: Props) {
           className="fixed inset-0 z-30"
           style={{ backgroundColor: "color-mix(in srgb, var(--ink) 25%, transparent)" }}
         />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-40 flex max-h-[85vh] flex-col rounded-t-3xl bg-bg outline-none border-t border-border">
+        <Drawer.Content
+          className="fixed inset-x-0 bottom-0 z-40 flex max-h-[85vh] flex-col rounded-t-3xl bg-bg outline-none border-t border-border"
+          // dvh, not vh — see the note in PinDrawer: a vh cap lets the
+          // drawer run under the mobile address bar, leaving the bottom
+          // of the column unreachable. The vh class is the fallback.
+          style={{ maxHeight: "85dvh" }}
+        >
           <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-ink/20" />
-          <div className="overflow-y-auto px-6 pb-8 pt-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-[max(env(safe-area-inset-bottom),2rem)]">
             <Drawer.Title className="font-display italic text-[22px] font-medium text-ink">
               Settings
             </Drawer.Title>

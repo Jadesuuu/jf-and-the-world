@@ -62,7 +62,16 @@ export default function PinDrawer({ pin, onClose, readOnly = false }: Props) {
           className={`fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-3xl bg-bg outline-none ${
             readOnly ? "max-h-[70vh]" : "max-h-[85vh]"
           }`}
-          style={{ borderTop: "1px solid var(--border)" }}
+          style={{
+            borderTop: "1px solid var(--border)",
+            // dvh, not vh: the drawer is pinned to the bottom of the
+            // *layout* viewport, so a vh cap lets it extend underneath
+            // the mobile address bar. The tail of the column then sits
+            // off screen with nothing to scroll, because as far as the
+            // scroll container is concerned the content still fits.
+            // The vh class above stays as the fallback.
+            maxHeight: readOnly ? "70dvh" : "85dvh",
+          }}
         >
           <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-ink-soft/40" />
           {/* Vaul wraps Content in a Radix Dialog under the hood; without
@@ -426,7 +435,7 @@ export function PinContent({
     // Mobile Vaul drawer: single scrolling column with action buttons
     // at the bottom of the scroll. Same as before the refactor.
     return (
-      <div className="overflow-y-auto px-6 pb-8 pt-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-[max(env(safe-area-inset-bottom),2rem)]">
         {title}
         {note}
         {inspirationBlock}
