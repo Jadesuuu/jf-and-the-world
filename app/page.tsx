@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import Map, { type LatLng, type MapHandle } from "@/components/Map";
 import PinDrawer, { ordinalTimeLabel } from "@/components/PinDrawer";
-import ImageLightbox from "@/components/ImageLightbox";
 import { MemorySearch } from "@/components/ui/MemorySearch";
 import type { VisitPhoto } from "@/hooks/usePinVisits";
 import { useLivedEntries, type LivedEntry } from "@/hooks/useLivedEntries";
@@ -261,7 +260,12 @@ export default function Home() {
   // child of <main>) is always reachable. Map stays mounted under
   // display:none while Lived is active so Mapbox doesn't reinitialize.
   return (
-    <main className="relative flex flex-1 flex-col">
+    // min-h-0 is load-bearing: without it this column flex item defaults
+    // to min-height:auto and grows to fit all of the Lived grid, so the
+    // panel's own scroll container ends up as tall as its content and
+    // there is nothing left to scroll. Same trap as the one called out
+    // in MemoriesPanel below, one level up.
+    <main className="relative flex min-h-0 flex-1 flex-col">
       <div
         className="relative flex-1"
         style={{ display: isMemories ? "none" : "flex" }}
@@ -358,14 +362,6 @@ function MemoriesPanel({
   const { data: profiles } = useProfiles();
   const [query, setQuery] = useState("");
 
-  // Lightbox photos are merged across the entry's visits in
-  // chronological order — same as the day-group strip in PinDrawer,
-  // so opening a card's photo navigates the entire day's roll.
-  const [lightbox, setLightbox] = useState<{
-    photos: VisitPhoto[];
-    index: number;
-  } | null>(null);
-
   const profilesByUser = useMemo(() => {
     const m: Record<string, Profile> = {};
     (profiles ?? []).forEach((p) => {
@@ -431,26 +427,12 @@ function MemoriesPanel({
                   entry={entry}
                   profilesByUser={profilesByUser}
                   onClick={() => onSelect(entry.pinId)}
-                  onOpenPhoto={(photos, index) =>
-                    setLightbox({ photos, index })
-                  }
                 />
               ))}
             </div>
           )}
         </div>
       </div>
-
-      <ImageLightbox
-        photos={(lightbox?.photos ?? []).map((p) => ({
-          url: p.image_url,
-          thumbnailUrl: thumbUrl(p.image_url, 120),
-          attribution: p.attribution ?? undefined,
-        }))}
-        initialIndex={lightbox?.index ?? 0}
-        open={lightbox != null}
-        onClose={() => setLightbox(null)}
-      />
     </div>
   );
 }
@@ -471,10 +453,9 @@ function NoMatchEmptyState({ query }: { query: string }) {
 // VisitCard — fixed-dimension preview tile for the Lived grid.
 // Every card is exactly 280px tall with a 140px photo strip on top
 // and 140px clipped content beneath, so the grid stays uniform no
-// matter how long titles or notes get. Two distinct tap targets:
-// the photo opens the lightbox (chronological roll across the day's
-// visits), the body opens the pin detail. Outer wrapper is a div
-// because nested buttons aren't valid.
+// matter how long titles or notes get. Photo and body are separate
+// buttons that both open the pin detail — the whole tile is one tap
+// target. Outer wrapper is a div because nested buttons aren't valid.
 const CARD_HEIGHT = 280;
 const PHOTO_HEIGHT = 140;
 
@@ -482,16 +463,14 @@ function VisitCard({
   entry,
   profilesByUser,
   onClick,
-  onOpenPhoto,
 }: {
   entry: LivedEntry;
   profilesByUser: Record<string, Profile>;
   onClick: () => void;
-  onOpenPhoto: (photos: VisitPhoto[], index: number) => void;
 }) {
   // Merge photos across all visits in the day, ordered by parent
-  // visited_at then photo created_at — same flatten as the day-group
-  // strip in PinDrawer, so the lightbox shows the same set.
+  // visited_at then photo created_at, so the cover is the day's
+  // earliest photo.
   const photos = useMemo(() => {
     const flat: { photo: VisitPhoto; visitedAt: string }[] = [];
     for (const v of entry.visits) {
@@ -546,8 +525,8 @@ function VisitCard({
       {cover ? (
         <button
           type="button"
-          onClick={() => onOpenPhoto(photos, 0)}
-          aria-label="View photo"
+          onClick={onClick}
+          aria-label={entry.pinTitle}
           className="w-full shrink-0 bg-surface"
           style={{ height: PHOTO_HEIGHT }}
         >
