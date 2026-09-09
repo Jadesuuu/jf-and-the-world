@@ -54,7 +54,12 @@ export default function PlacePreviewSheet({
         />
         <Drawer.Content
           className="fixed inset-x-0 bottom-0 z-40 flex max-h-[80vh] flex-col rounded-t-3xl bg-surface outline-none"
-          style={{ borderTop: "0.5px solid var(--border)" }}
+          style={{
+            borderTop: "0.5px solid var(--border)",
+            // dvh, not vh — see the note in PinDrawer. The vh class
+            // above is the fallback.
+            maxHeight: "80dvh",
+          }}
         >
           <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-ink-soft/40" />
           {place && (
@@ -103,7 +108,7 @@ export function PreviewBody({
   if (layout === "drawer") {
     return (
       <div
-        className="flex flex-col overflow-y-auto"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
         style={{ overscrollBehavior: "contain" }}
       >
         {place.photos.length > 0 && (
