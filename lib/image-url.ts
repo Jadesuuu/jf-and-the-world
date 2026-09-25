@@ -43,3 +43,29 @@ export function thumbUrl(url: string, width = 240): string {
   if (demo) return `/demo/${demo[1]}/thumbs/${demo[2]}`;
   return url;
 }
+
+// Responsive candidates for gallery tiles whose rendered width depends on
+// how wide the user has dragged the sidebar. Paired with a `sizes` value
+// measured from the live grid, the browser picks the smallest variant that
+// covers slot width × devicePixelRatio — a 330px tile on a 2x screen gets
+// the 640 variant, a 700px hero gets 1280 — so photos stay crisp without
+// downloading the full upload for every thumbnail.
+const RESPONSIVE_WIDTHS = [320, 480, 640, 960, 1280];
+
+export function photoSrcSet(url: string): string | undefined {
+  if (isCloudinaryUrl(url)) {
+    return RESPONSIVE_WIDTHS.map(
+      (w) =>
+        `${url.replace(
+          CLOUDINARY_UPLOAD,
+          `${CLOUDINARY_UPLOAD}w_${w},c_limit,f_auto,q_auto/`,
+        )} ${w}w`,
+    ).join(", ");
+  }
+  const demo = /^\/demo\/(photos|places)\/([^/]+\.jpg)$/.exec(url);
+  if (demo) {
+    // Snapshot thumbs are 480px; full-size demo photos are 1280–1400px.
+    return `/demo/${demo[1]}/thumbs/${demo[2]} 480w, ${url} 1280w`;
+  }
+  return undefined;
+}

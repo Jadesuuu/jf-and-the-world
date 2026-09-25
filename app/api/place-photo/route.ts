@@ -6,10 +6,12 @@ import { createClient } from "@/lib/supabase/server";
 // endpoint can't be turned into an open proxy for arbitrary URLs.
 const PHOTO_REF_RE = /^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/;
 
-// Size allowlist — strip uses "thumb" (cheap), lightbox uses "full".
+// Size allowlist — strip uses "thumb" (cheap), desktop grid uses "medium",
+// lightbox uses "full".
 // Anything else falls back to thumb.
 const SIZE_TO_HEIGHT: Record<string, number> = {
   thumb: 400,
+  medium: 800,
   full: 1600,
 };
 

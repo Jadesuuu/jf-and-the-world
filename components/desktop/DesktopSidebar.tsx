@@ -22,6 +22,11 @@ import {
   SCROLL_SHADOW_TOP,
   SCROLL_SHADOW_BOTTOM,
 } from "@/lib/use-scroll-shadows";
+import {
+  useSidebarResize,
+  sidebarMaxWidth,
+  SIDEBAR_MIN_WIDTH,
+} from "./useSidebarResize";
 
 type SidebarTab = "dreaming" | "lived";
 type SidebarMode = "list" | "detail" | "add" | "preview";
@@ -74,55 +79,105 @@ export default function DesktopSidebar(props: Props) {
         ? "preview"
         : "list";
 
+  const resize = useSidebarResize<HTMLElement>();
+
   return (
     <aside
-      className="flex h-full w-[380px] shrink-0 flex-col overflow-hidden bg-surface"
-      style={{ borderRight: "0.5px solid var(--border)" }}
+      ref={resize.ref}
+      className={`relative flex h-full shrink-0 flex-col bg-surface ${
+        resize.animating ? "sidebar-width-anim" : ""
+      }`}
+      style={{
+        width: resize.width,
+        borderRight: "0.5px solid var(--border)",
+        zIndex: 1,
+      }}
+      onTransitionEnd={resize.onTransitionEnd}
     >
-      {mode === "list" && (
-        <ListMode
-          tab={tab}
-          onTabChange={setTab}
-          onSelectPin={onSelectPin}
-          onOpenAdd={onOpenAdd}
-        />
-      )}
-
-      {mode === "detail" && selectedPin && (
-        <PanelMode label="all pins" onBack={onCloseDetail}>
-          <PinContent
-            layout="panel"
-            pin={selectedPin}
-            readOnly={false}
-            onClose={onCloseDetail}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {mode === "list" && (
+          <ListMode
+            tab={tab}
+            onTabChange={setTab}
+            onSelectPin={onSelectPin}
+            onOpenAdd={onOpenAdd}
           />
-        </PanelMode>
-      )}
+        )}
 
-      {mode === "add" && (
-        <PanelMode label="cancel" onBack={onCloseAdd}>
-          <AddPinForm
-            layout="panel"
-            pendingLatLng={pendingLatLng}
-            prefillTitle={pendingPrefillTitle || undefined}
-            prefillPlaceId={pendingPrefillPlaceId}
-            onClose={onCloseAdd}
-            onSubmitted={onSubmittedAdd}
-            onOpenExistingPin={onOpenExistingFromAdd}
-          />
-        </PanelMode>
-      )}
+        {mode === "detail" && selectedPin && (
+          <PanelMode label="all pins" onBack={onCloseDetail}>
+            <PinContent
+              layout="panel"
+              pin={selectedPin}
+              readOnly={false}
+              onClose={onCloseDetail}
+            />
+          </PanelMode>
+        )}
 
-      {mode === "preview" && previewPlace && (
-        <PanelMode label="back" onBack={onClosePreview}>
-          <PreviewBody
-            place={previewPlace}
-            onDropDream={onDropDreamFromPreview}
-            layout="panel"
-          />
-        </PanelMode>
-      )}
+        {mode === "add" && (
+          <PanelMode label="cancel" onBack={onCloseAdd}>
+            <AddPinForm
+              layout="panel"
+              pendingLatLng={pendingLatLng}
+              prefillTitle={pendingPrefillTitle || undefined}
+              prefillPlaceId={pendingPrefillPlaceId}
+              onClose={onCloseAdd}
+              onSubmitted={onSubmittedAdd}
+              onOpenExistingPin={onOpenExistingFromAdd}
+            />
+          </PanelMode>
+        )}
+
+        {mode === "preview" && previewPlace && (
+          <PanelMode label="back" onBack={onClosePreview}>
+            <PreviewBody
+              place={previewPlace}
+              onDropDream={onDropDreamFromPreview}
+              layout="panel"
+            />
+          </PanelMode>
+        )}
+      </div>
+
+      <SidebarResizeHandle
+        width={resize.width}
+        dragging={resize.dragging}
+        {...resize.handleProps}
+      />
     </aside>
+  );
+}
+
+// ============================================================
+// Resize handle: the seam between sidebar and map
+// ============================================================
+
+function SidebarResizeHandle({
+  width,
+  dragging,
+  ...handlers
+}: {
+  width: number;
+  dragging: boolean;
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
+  onDoubleClick: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize sidebar"
+      aria-valuemin={SIDEBAR_MIN_WIDTH}
+      aria-valuemax={sidebarMaxWidth()}
+      aria-valuenow={width}
+      tabIndex={0}
+      title="Drag to resize. Double-click to reset."
+      className="sidebar-resize-handle"
+      data-active={dragging ? "" : undefined}
+      {...handlers}
+    />
   );
 }
 
@@ -237,9 +292,7 @@ function TabButton({
       aria-selected={active}
       onClick={onClick}
       className={`flex-1 h-9 rounded-full font-display text-[15px] transition-colors ${
-        active
-          ? "italic bg-accent text-bg"
-          : "text-ink-soft hover:text-ink"
+        active ? "italic bg-accent text-bg" : "text-ink-soft hover:text-ink"
       }`}
     >
       {label}
@@ -281,10 +334,7 @@ function PanelMode({
           <span>{label}</span>
         </button>
       </div>
-      <div
-        className="flex flex-1 flex-col"
-        style={{ minHeight: 0 }}
-      >
+      <div className="flex flex-1 flex-col" style={{ minHeight: 0 }}>
         {children}
       </div>
     </>
@@ -366,8 +416,7 @@ function LivedPill() {
     <span
       className="shrink-0 rounded-full px-2 py-[3px] font-body text-[11px]"
       style={{
-        backgroundColor:
-          "color-mix(in srgb, var(--accent-2) 22%, transparent)",
+        backgroundColor: "color-mix(in srgb, var(--accent-2) 22%, transparent)",
         color: "var(--accent-2)",
         border: "0.5px solid var(--accent-2)",
       }}

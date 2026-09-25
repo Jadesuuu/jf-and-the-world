@@ -17,10 +17,11 @@ import { toast } from "sonner";
 import type { Pin } from "@/hooks/usePins";
 import ImageLightbox, { type LightboxPhoto } from "./ImageLightbox";
 import { VisitNotes, type VisitNoteEntry } from "./ui/VisitNotes";
-import { PreviewPhoto, ReviewCard } from "./PlacePreviewSheet";
+import { ReviewCard } from "./PlacePreviewSheet";
 import { fetchGooglePlaceDetails } from "@/lib/google-place-details";
 import { IS_DEMO } from "@/lib/demo";
-import { thumbUrl } from "@/lib/image-url";
+import { thumbUrl, photoSrcSet } from "@/lib/image-url";
+import { PhotoGallery, type GalleryPhoto } from "./ui/PhotoGallery";
 import dynamic from "next/dynamic";
 import {
   useScrollShadows,
@@ -118,6 +119,9 @@ export function PinContent({
   // Demo builds are read-only everywhere, regardless of which surface
   // (mobile drawer, desktop panel, Lived tab) rendered this content.
   const readOnly = readOnlyProp || IS_DEMO;
+  // The mobile drawer keeps its filmstrip; the desktop panel lays photos
+  // out as a grid that fills whatever width the sidebar is dragged to.
+  const galleryVariant = layout === "drawer" ? "strip" : "grid";
   const queryClient = useQueryClient();
   const { data: currentUser } = useCurrentUser();
   const { data: visits = [] } = usePinVisits(pin.id);
@@ -282,7 +286,7 @@ export function PinContent({
     ? profilesByUser[pin.created_by]?.display_name
     : undefined;
   const note = pin.note ? (
-    <div className="mt-2">
+    <div className="mt-2 max-w-[62ch]">
       {IS_DEMO && pinAuthor && (
         <p
           className="font-body uppercase text-[11px] font-medium text-ink-soft"
@@ -330,6 +334,7 @@ export function PinContent({
   const timeline = hasVisits ? (
     <VisitTimeline
       visits={visits}
+      variant={galleryVariant}
       currentUserId={currentUser?.id ?? null}
       profilesByUser={profilesByUser}
       onPhotoClick={(photos, index) =>
@@ -351,11 +356,13 @@ export function PinContent({
   const prelivedPlace = hasVisits ? null : IS_DEMO ? (
     <DemoPlaceBlock
       pinId={pin.id}
+      variant={galleryVariant}
       onOpenPhotos={(photos, index) => setLightbox({ photos, index })}
     />
   ) : pin.google_place_id ? (
     <PrelivedPlaceBlock
       placeId={pin.google_place_id}
+      variant={galleryVariant}
       onOpenPhotos={(photos, index) => setLightbox({ photos, index })}
     />
   ) : null;
@@ -640,11 +647,13 @@ export function ordinalTimeLabel(n: number): string {
 
 function VisitTimeline({
   visits,
+  variant,
   currentUserId,
   profilesByUser,
   onPhotoClick,
 }: {
   visits: Visit[];
+  variant: "strip" | "grid";
   currentUserId: string | null;
   profilesByUser: Record<string, Profile>;
   onPhotoClick: (photos: VisitPhoto[], index: number) => void;
@@ -669,6 +678,7 @@ function VisitTimeline({
           key={g.date}
           date={g.date}
           visits={g.visits}
+          variant={variant}
           ordinal={dayOrdinalByDate[g.date] ?? 1}
           currentUserId={currentUserId}
           profilesByUser={profilesByUser}
@@ -681,6 +691,7 @@ function VisitTimeline({
 
 function DayGroupCard({
   visits,
+  variant,
   ordinal,
   currentUserId,
   profilesByUser,
@@ -688,6 +699,7 @@ function DayGroupCard({
 }: {
   date: string;
   visits: Visit[];
+  variant: "strip" | "grid";
   ordinal: number;
   currentUserId: string | null;
   profilesByUser: Record<string, Profile>;
@@ -729,6 +741,17 @@ function DayGroupCard({
     return flat.map((x) => x.photo);
   }, [visits]);
 
+  const tiles = useMemo<GalleryPhoto[]>(
+    () =>
+      photos.map((p) => ({
+        key: p.id,
+        src: thumbUrl(p.image_url, 80),
+        largeSrc: thumbUrl(p.image_url, 640),
+        srcSet: photoSrcSet(p.image_url),
+      })),
+    [photos],
+  );
+
   const editingVisit =
     editingVisitId != null
       ? visits.find((v) => v.id === editingVisitId) ?? null
@@ -762,31 +785,28 @@ function DayGroupCard({
           onDone={() => setEditingVisitId(null)}
         />
       ) : (
-        noteEntries.length > 0 && <VisitNotes notes={noteEntries} />
+        noteEntries.length > 0 && (
+          <div className="max-w-[62ch]">
+            <VisitNotes notes={noteEntries} />
+          </div>
+        )
       )}
 
-      {photos.length > 0 && (
-        <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
-          {photos.map((p, i) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => onPhotoClick(photos, i)}
-              className="shrink-0 overflow-hidden rounded-lg"
-              style={{ height: 80, width: 80 }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={thumbUrl(p.image_url, 80)}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover"
-              />
-            </button>
-          ))}
-        </div>
-      )}
+      {photos.length > 0 &&
+        (variant === "strip" ? (
+          <PhotoGallery
+            variant="strip"
+            tile={{ width: 80, height: 80 }}
+            photos={tiles}
+            onOpen={(i) => onPhotoClick(photos, i)}
+          />
+        ) : (
+          <PhotoGallery
+            variant="grid"
+            photos={tiles}
+            onOpen={(i) => onPhotoClick(photos, i)}
+          />
+        ))}
     </div>
   );
 }
@@ -1404,9 +1424,11 @@ function PendingPhotoThumb({
 // re-opening the same pin doesn't re-bill the Places API.
 function PrelivedPlaceBlock({
   placeId,
+  variant,
   onOpenPhotos,
 }: {
   placeId: string;
+  variant: "strip" | "grid";
   onOpenPhotos: (photos: LightboxPhoto[], index: number) => void;
 }) {
   const { data, isLoading, isError } = useQuery({
@@ -1435,23 +1457,37 @@ function PrelivedPlaceBlock({
       attribution: p.attribution,
     };
   });
+  // Google photos are served by height, so there's no width srcset;
+  // the grid asks for the 800px variant instead of the 400px strip one.
+  const tiles: GalleryPhoto[] = data.photos.map((p) => {
+    const ref = encodeURIComponent(p.ref);
+    return {
+      key: p.ref,
+      src: `/api/place-photo?ref=${ref}&size=thumb`,
+      largeSrc: `/api/place-photo?ref=${ref}&size=medium`,
+    };
+  });
 
   return (
     <div className="mt-6 flex flex-col gap-4">
       <h3 className="font-display italic text-[14px] text-ink-soft">
         From the world
       </h3>
-      {data.photos.length > 0 && (
-        <div className="-mx-6 flex gap-2 overflow-x-auto px-6">
-          {data.photos.map((p, i) => (
-            <PreviewPhoto
-              key={p.ref}
-              ref_={p.ref}
-              onClick={() => onOpenPhotos(lightboxPhotos, i)}
-            />
-          ))}
-        </div>
-      )}
+      {data.photos.length > 0 &&
+        (variant === "strip" ? (
+          <PhotoGallery
+            variant="strip"
+            tile={{ width: 200, height: 140 }}
+            photos={tiles}
+            onOpen={(i) => onOpenPhotos(lightboxPhotos, i)}
+          />
+        ) : (
+          <PhotoGallery
+            variant="grid"
+            photos={tiles}
+            onOpen={(i) => onOpenPhotos(lightboxPhotos, i)}
+          />
+        ))}
       {data.reviews.length > 0 && (
         <div className="flex flex-col gap-2">
           {data.reviews.map((r, i) => (
