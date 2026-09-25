@@ -47,15 +47,15 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Browser chrome tint matches the first-paint theme: Galaxy in the demo.
-  themeColor: IS_DEMO ? "#050b1f" : "#f7f1e8",
+  // Browser chrome tint matches the first-paint theme (Galaxy).
+  themeColor: "#050b1f",
   viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
 };
 
 // Keep in sync with DEFAULT_THEME in components/ThemeProvider.tsx.
-const defaultTheme = IS_DEMO ? "galaxy" : "auto";
+const defaultTheme = "galaxy";
 
 // Origin only (no path) for the preconnect hint. Undefined in demo builds.
 const supabaseOrigin = (() => {
