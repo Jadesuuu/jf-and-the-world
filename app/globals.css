@@ -276,3 +276,139 @@ body[data-theme="paper"] .pin-marker-shape {
   stroke-width: 0.5;
   stroke-opacity: 0.3;
 }
+
+/* ------------------------------------------------------------------
+   Photo tiles (drawer galleries). One authored moment: a photo settles
+   in from a soft blur as it decodes, so a day's spread resolves rather
+   than pops. Hover lifts the image inside the frame on fine pointers
+   only — touch devices would otherwise hold the lifted state after tap.
+   ------------------------------------------------------------------ */
+
+.photo-tile img {
+  opacity: 0;
+  filter: blur(6px);
+  transform: scale(1.03);
+  transition:
+    opacity 360ms cubic-bezier(0.23, 1, 0.32, 1),
+    filter 360ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 360ms cubic-bezier(0.23, 1, 0.32, 1);
+  will-change: opacity, filter, transform;
+}
+
+.photo-tile img[data-loaded] {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  will-change: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .photo-tile img[data-loaded] {
+    transition: transform 400ms ease, filter 200ms ease;
+  }
+  .photo-tile:hover img[data-loaded] {
+    transform: scale(1.04);
+    filter: brightness(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-tile img {
+    transition: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+  .photo-tile:hover img[data-loaded] {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Desktop sidebar resize handle. A 12px grab zone straddles the
+   sidebar/map seam. At rest it shows only a short grip pill so the
+   affordance is discoverable without drawing a line down the page;
+   on hover, focus, or drag the full seam tints accent.
+   ------------------------------------------------------------------ */
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -6px;
+  width: 12px;
+  z-index: 3;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.sidebar-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transform: scaleX(0.5);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+
+.sidebar-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 4px;
+  height: 40px;
+  margin-top: -20px;
+  border-radius: 2px;
+  background: var(--ink-soft);
+  opacity: 0.35;
+  transition:
+    opacity 150ms ease,
+    background-color 150ms ease;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle:focus-visible::before,
+.sidebar-resize-handle[data-active]::before {
+  opacity: 1;
+  transform: none;
+}
+
+.sidebar-resize-handle:hover::after,
+.sidebar-resize-handle:focus-visible::after,
+.sidebar-resize-handle[data-active]::after {
+  opacity: 1;
+  background: var(--accent);
+}
+
+/* Double-click reset: the only time the width animates. The element is
+   already on screen and moving, so ease-in-out. */
+.sidebar-width-anim {
+  transition: width 240ms cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* While dragging, keep the resize cursor everywhere and stop the map
+   canvas from claiming the pointer or the page from selecting text. */
+body.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+body.sidebar-resizing canvas,
+body.sidebar-resizing iframe {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-resize-handle::before,
+  .sidebar-resize-handle::after,
+  .sidebar-width-anim {
+    transition: none;
+  }
+}
