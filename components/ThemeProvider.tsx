@@ -14,12 +14,11 @@ import {
   type ThemeId,
   type ThemePreference,
 } from "@/lib/themes";
-import { IS_DEMO } from "@/lib/demo";
 
-// First-visit preference. The demo opens in Galaxy because that's the
-// showpiece; the real app follows the system. Must match the inline FOUC
-// script in app/layout.tsx.
-export const DEFAULT_THEME: ThemePreference = IS_DEMO ? "galaxy" : "auto";
+// First-visit preference. Galaxy is the showpiece, so every build opens
+// in it; the user can still pick "auto" in Settings. Must match the inline
+// FOUC script in app/layout.tsx.
+export const DEFAULT_THEME: ThemePreference = "galaxy";
 
 interface ThemeContextValue {
   theme: ThemePreference;
